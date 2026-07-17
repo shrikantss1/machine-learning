@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SVM & Kernel Trick Visualizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+</head>
+<body class="bg-slate-50 p-4 sm:p-8 text-slate-800 flex flex-col items-center min-h-screen">
+
+    <div class="max-w-6xl w-full bg-white rounded-2xl shadow-xl p-6 border border-slate-100">
+        
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-indigo-700 mb-2">Support Vector Machines (SVM)</h1>
+            <p class="text-slate-600">
+                Explore the "Widest Street" margin and the dimensional magic of the Kernel Trick.
+            </p>
+        </div>
+
+        <!-- Section 1: The Widest Street (2D) -->
+        <div class="mb-12 bg-slate-50 p-6 rounded-xl border border-slate-200">
+            <h2 class="text-2xl font-black text-indigo-600 mb-2">1. The "Widest Street" (Margin)</h2>
+            <p class="text-sm text-slate-600 mb-6">
+                Notice how the solid Decision Boundary is placed perfectly in the middle. The dashed lines are the "sidewalks" (Margins). The points with the glowing halos are the <strong>Support Vectors</strong>—they are the only points the algorithm cares about!
+            </p>
+            
+            <div class="flex justify-center">
+                <div class="relative w-full max-w-[500px] aspect-square bg-white border border-slate-300 shadow-sm rounded-lg overflow-hidden">
+                    <canvas id="marginCanvas" width="500" height="500" class="w-full h-full"></canvas>
+                    
+                    <!-- Legend -->
+                    <div class="absolute top-4 left-4 bg-white/90 p-3 rounded-lg shadow-sm border border-slate-200 text-xs font-medium text-slate-600">
+                        <div class="flex items-center gap-2 mb-2">
+                            <div class="w-8 h-1 bg-indigo-600"></div> Decision Boundary
+                        </div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <div class="w-8 h-0 border-t-2 border-dashed border-slate-400"></div> Margins
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-4 h-4 rounded-full border-2 border-amber-400 bg-amber-100"></div> Support Vector
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2: The Kernel Trick (3D) -->
+        <div class="bg-slate-50 p-6 rounded-xl border border-slate-200">
+            <h2 class="text-2xl font-black text-indigo-600 mb-2">2. The Kernel Trick (Concentric Circles)</h2>
+            <p class="text-sm text-slate-600 mb-6 max-w-3xl">
+                On the left, the data is trapped in 2D. You <strong>cannot</strong> draw a straight line to separate the red and blue dots. <br>
+                On the right, the SVM uses a Kernel to calculate a 3rd dimension (Z = X² + Y²). Suddenly, the data forms a bowl, and the SVM can easily slide a flat sheet of glass (the Hyperplane) right between them!
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-2">
+                    <h3 class="text-center font-bold text-slate-700 mt-2">2D Space (Impossible to separate)</h3>
+                    <div id="plot2d" style="width: 100%; height: 400px;"></div>
+                </div>
+                <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-2">
+                    <h3 class="text-center font-bold text-slate-700 mt-2">3D Space (Easily separable)</h3>
+                    <div id="plot3d" style="width: 100%; height: 400px;"></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- PART 1: 2D MARGIN CANVAS ---
+        const canvas = document.getElementById('marginCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function drawMarginDemo() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw grid
+            ctx.strokeStyle = '#f1f5f9';
+            ctx.lineWidth = 1;
+            for(let i = 0; i < canvas.width; i += 50) {
+                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
+            }
+
+            // The Math of our fake SVM: Line is y = -x + 500
+            // Margins are y = -x + 400 and y = -x + 600
+
+            // Draw Margins (Dashed)
+            ctx.beginPath();
+            ctx.strokeStyle = '#94a3b8'; // slate-400
+            ctx.lineWidth = 2;
+            ctx.setLineDash([10, 10]);
+            ctx.moveTo(0, 400); ctx.lineTo(400, 0);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(100, 500); ctx.lineTo(500, 100);
+            ctx.stroke();
+            ctx.setLineDash([]); // reset
+
+            // Draw Hyperplane (Solid)
+            ctx.beginPath();
+            ctx.strokeStyle = '#4f46e5'; // indigo-600
+            ctx.lineWidth = 4;
+            ctx.moveTo(0, 500); ctx.lineTo(500, 0);
+            ctx.stroke();
+
+            // Data Points
+            const class1 = [
+                {x: 100, y: 100}, {x: 150, y: 50}, {x: 50, y: 200}, 
+                {x: 200, y: 150}, {x: 80, y: 250}, {x: 250, y: 50},
+                {x: 150, y: 250} // Support Vector
+            ];
+            
+            const class2 = [
+                {x: 400, y: 400}, {x: 450, y: 350}, {x: 350, y: 450}, 
+                {x: 300, y: 400}, {x: 450, y: 250}, {x: 350, y: 300},
+                {x: 250, y: 350} // Support Vector
+            ];
+
+            // Draw Support Vector Halos
+            ctx.beginPath();
+            ctx.arc(150, 250, 12, 0, Math.PI * 2); // C1 SV
+            ctx.arc(250, 350, 12, 0, Math.PI * 2); // C2 SV
+            ctx.fillStyle = '#fef3c7'; // amber-100
+            ctx.fill();
+            ctx.strokeStyle = '#fbbf24'; // amber-400
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Draw Class 1 (Red Apples)
+            class1.forEach(pt => {
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, 6, 0, Math.PI * 2);
+                ctx.fillStyle = '#ef4444';
+                ctx.fill();
+                ctx.strokeStyle = '#b91c1c';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            });
+
+            // Draw Class 2 (Yellow Bananas)
+            class2.forEach(pt => {
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, 6, 0, Math.PI * 2);
+                ctx.fillStyle = '#facc15';
+                ctx.fill();
+                ctx.strokeStyle = '#a16207';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            });
+        }
+        drawMarginDemo();
+
+
+        // --- PART 2: PLOTLY 3D KERNEL TRICK ---
+        // Generate Circular Data
+        let x_inner = [], y_inner = [], z_inner = [];
+        let x_outer = [], y_outer = [], z_outer = [];
+
+        for(let i = 0; i < 100; i++) {
+            // Inner circle (radius ~ 1)
+            let angle = Math.random() * Math.PI * 2;
+            let r1 = Math.random() * 0.5 + 0.5;
+            let xi = r1 * Math.cos(angle);
+            let yi = r1 * Math.sin(angle);
+            x_inner.push(xi); y_inner.push(yi); z_inner.push(xi*xi + yi*yi);
+
+            // Outer circle (radius ~ 3)
+            let r2 = Math.random() * 0.8 + 2.2;
+            let xo = r2 * Math.cos(angle);
+            let yo = r2 * Math.sin(angle);
+            x_outer.push(xo); y_outer.push(yo); z_outer.push(xo*xo + yo*yo);
+        }
+
+        // 2D Plot
+        let trace1_2d = { x: x_inner, y: y_inner, mode: 'markers', type: 'scatter', name: 'Class 0', marker: {color: '#ef4444', size: 8}};
+        let trace2_2d = { x: x_outer, y: y_outer, mode: 'markers', type: 'scatter', name: 'Class 1', marker: {color: '#3b82f6', size: 8}};
+        
+        Plotly.newPlot('plot2d', [trace1_2d, trace2_2d], {
+            margin: {l: 20, r: 20, b: 20, t: 20},
+            showlegend: false,
+            xaxis: {range: [-4, 4]}, yaxis: {range: [-4, 4]}
+        }, {displayModeBar: false});
+
+        // 3D Plot
+        let trace1_3d = { x: x_inner, y: y_inner, z: z_inner, mode: 'markers', type: 'scatter3d', name: 'Class 0', marker: {color: '#ef4444', size: 4}};
+        let trace2_3d = { x: x_outer, y: y_outer, z: z_outer, mode: 'markers', type: 'scatter3d', name: 'Class 1', marker: {color: '#3b82f6', size: 4}};
+        
+        // The Hyperplane (A flat surface at Z = 2.5)
+        let plane_size = 4;
+        let trace_plane = {
+            x: [-plane_size, plane_size, plane_size, -plane_size],
+            y: [-plane_size, -plane_size, plane_size, plane_size],
+            z: [2.5, 2.5, 2.5, 2.5],
+            type: 'mesh3d',
+            opacity: 0.5,
+            color: '#10b981', // Emerald green plane
+            name: 'Hyperplane'
+        };
+
+        Plotly.newPlot('plot3d', [trace1_3d, trace2_3d, trace_plane], {
+            margin: {l: 0, r: 0, b: 0, t: 0},
+            showlegend: false,
+            scene: {
+                xaxis: {range: [-4, 4]}, yaxis: {range: [-4, 4]}, zaxis: {range: [0, 10]},
+                camera: { eye: {x: 1.5, y: -1.5, z: 0.5} }
+            }
+        }, {displayModeBar: false});
+
+    </script>
+</body>
+</html>
